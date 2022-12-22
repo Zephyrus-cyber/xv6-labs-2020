@@ -138,6 +138,7 @@ UPROGS=\
 	$U/_forktest\
 	$U/_grep\
 	$U/_init\
+	$U/_trace\
 	$U/_kill\
 	$U/_ln\
 	$U/_ls\
