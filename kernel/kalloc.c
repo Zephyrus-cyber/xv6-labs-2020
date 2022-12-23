@@ -10,6 +10,7 @@
 #include "defs.h"
 
 void freerange(void *pa_start, void *pa_end);
+//extern uint64 freebytes_count(void);
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
@@ -79,4 +80,20 @@ kalloc(void)
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+uint64
+freebytes_count(void)
+{
+  struct run *p=kmem.freelist;	// 这里不能用->，否则报错
+  uint64 cnt = 0;
+
+  acquire(&kmem.lock);
+  // 遍历空闲内存链条
+  while(p) {
+    cnt += PGSIZE;   // 每一页的字节数
+    p = p->next;
+  }
+  release(&kmem.lock);
+  return cnt;
 }

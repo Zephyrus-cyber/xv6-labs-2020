@@ -6,6 +6,23 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"	// 否则无法解决结构体sysinfo
+
+uint64
+sys_sysinfo(void)
+{
+  struct sysinfo info;
+  info.freemem = freebytes_count();
+  info.nproc = freeproc_count();
+
+  struct proc *p = myproc();
+  uint64 dst;
+  argaddr(0, &dst);
+
+  if(copyout(p->pagetable, dst, (char*)&info, sizeof info) < 0 )
+    return -1;
+  return 0;
+}
 
 uint64
 sys_trace(void)

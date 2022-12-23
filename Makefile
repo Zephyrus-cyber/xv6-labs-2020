@@ -139,6 +139,7 @@ UPROGS=\
 	$U/_grep\
 	$U/_init\
 	$U/_trace\
+	$U/_sysinfotest\
 	$U/_kill\
 	$U/_ln\
 	$U/_ls\

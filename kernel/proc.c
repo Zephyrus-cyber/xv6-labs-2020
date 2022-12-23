@@ -18,6 +18,7 @@ struct spinlock pid_lock;
 extern void forkret(void);
 static void wakeup1(struct proc *chan);
 static void freeproc(struct proc *p);
+//extern uint64 freeproc_count(void);
 
 extern char trampoline[]; // trampoline.S
 
@@ -83,6 +84,20 @@ allocpid() {
   release(&pid_lock);
 
   return pid;
+}
+
+uint64 
+freeproc_count(void)
+{
+  struct proc *p;
+  uint64 cnt = 0;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+  	if (p->state != UNUSED)
+		cnt++;
+  }
+
+  return cnt;
 }
 
 // Look in the process table for an UNUSED proc.
