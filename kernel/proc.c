@@ -16,7 +16,7 @@ int nextpid = 1;
 struct spinlock pid_lock;
 
 extern void forkret(void);
-static void wakeup1(struct proc *chan);
+static void wakeup1(struct proc *chan);  
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
@@ -31,17 +31,21 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
 
+      // 这块注释掉，原本这块是为每个进程的根页表分配内核栈
+      // 现在每个进程都有独立的内核页表，将分配内核栈的工作移到allocproc
+
       // Allocate a page for the process's kernel stack.
       // Map it high in memory, followed by an invalid
       // guard page.
-      char *pa = kalloc();
-      if(pa == 0)
-        panic("kalloc");
-      uint64 va = KSTACK((int) (p - proc));
-      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-      p->kstack = va;
+      //char *pa = kalloc();
+      //if(pa == 0)
+      //  panic("kalloc");
+      //uint64 va = KSTACK((int) (p - proc));
+      //kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+      //p->kstack = va;
   }
-  kvminithart();
+  // 这里注释掉，这里加载的是全局内核页表到satp，而现在每个进程都有自己的内核页表
+  //kvminithart();
 }
 
 // Must be called with interrupts disabled,
@@ -121,13 +125,44 @@ found:
     return 0;
   }
 
+  // lab03
+  p->kpagetable = proc_kvminit();
+  if(p->kpagetable == 0) {
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+  char *pa = kalloc();  // 为该进程的内核栈分配一个页
+  if(pa == 0)
+    panic("allocproc: kalloc");
+  uint64 va = KSTACK(0);  // TRAMPOLINE - 2*PGSIZE;  // 还有一个guard page
+  proc_kvmmap(p->kpagetable, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  p->kstack = va;   // 注意这部分的代码要放在前面，因为后面要使用到p->kstack
+
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
-
+  
   return p;
+}
+
+// 注意该函数被下面的函数调用，必须要放在前面，或者提前在文件一开始处声明
+void
+proc_free_kernal_pagetable(pagetable_t pagetable)
+{
+   for(int i = 0; i < 512; i++) {
+     pte_t pte = pagetable[i];
+     if(pte & PTE_V) {
+       pagetable[i] = 0;  // 解除映射
+       if ((pte & (PTE_R|PTE_W|PTE_X)) == 0) {
+         uint64 child = PTE2PA(pte);
+         proc_free_kernal_pagetable((pagetable_t)child);
+       }
+     }  // 少了这个括号，找了好久....
+   }
+   kfree((void*)pagetable);
 }
 
 // free a proc structure and the data hanging from it,
@@ -142,6 +177,19 @@ freeproc(struct proc *p)
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
+  // lab03 释放进程内核页表
+  if(p->kstack) {
+  // 每个进程的内核页表栈是不共享的，释放其物理内存
+    uvmunmap(p->kpagetable, p->kstack, 1, 1);  // 最后一位为1表示不仅解除映射，也同时删除物理内存
+  }
+  p->kstack = 0;
+
+  if(p->kpagetable) {
+    // 而每个进程的内核页表除了内核栈以外都是共享的，所以只能解除映射不能物理删除
+    proc_free_kernal_pagetable(p->kpagetable);
+  }
+  p->kpagetable = 0;
+
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -473,11 +521,20 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+	// lab03 进程运行时使用进程的内核页表
+	w_satp(MAKE_SATP(p->kpagetable));
+	sfence_vma(); // 刷新TLB
+
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
-        c->proc = 0;
+        
+	// lab03 
+	// 进程运行结束，切换回全局内核页表
+	kvminithart();
+
+       	c->proc = 0;
 
         found = 1;
       }
