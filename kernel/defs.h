@@ -182,6 +182,11 @@ int             copyinstr(pagetable_t, char *, uint64, uint64);
 void		vmprint(pagetable_t, int);  // lab03
 void		proc_kvmmap(pagetable_t, uint64, uint64, uint64, int); // lab03
 pagetable_t	proc_kvminit(void); // lab03
+int             u2kvmcopy(pagetable_t, pagetable_t, uint64, uint64);  // lab3-2
+
+// vmcopyin.c
+int             copyin_new(pagetable_t, char *, uint64, uint64);
+int             copyinstr_new(pagetable_t, char *, uint64, uint64);
 
 // plic.c
 void            plicinit(void);

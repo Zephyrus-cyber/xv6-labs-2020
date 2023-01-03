@@ -116,6 +116,12 @@ exec(char *path, char **argv)
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
   
+  // 解除之前内核页表的映射,因为exec替换了进程镜像,添加新的进程页表映射到内核页表中
+  uvmunmap(p->kpagetable, 0, PGROUNDUP(oldsz)/PGSIZE, 0);
+  if(u2kvmcopy(p->pagetable, p->kpagetable, 0, p->sz) < 0){
+    goto bad;
+  }
+
   // Lab03:page table
   if (p->pid == 1) {
     //printf("current process id pid:1\n"); 

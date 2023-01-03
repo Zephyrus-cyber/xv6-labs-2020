@@ -268,7 +268,9 @@ userinit(void)
   // and data into it.
   uvminit(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
-
+  
+  // 注意userinit用于初始化xv6启动后的第一个进程,也需要建立进程页表到内核页表的映射
+  u2kvmcopy(p->pagetable, p->kpagetable, 0, p->sz);
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
   p->trapframe->sp = PGSIZE;  // user stack pointer
@@ -291,11 +293,21 @@ growproc(int n)
 
   sz = p->sz;
   if(n > 0){
+    if(n + sz > PLIC) {  // 不能增长超过PLIC的地址,否则会影响到内核的内容
+      return -1;
+    }
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+      return -1;
+    }
+    if(u2kvmcopy(p->pagetable, p->kpagetable, p->sz, sz) < 0) {  // 建立新增长内容的映射到内核页表中
       return -1;
     }
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
+    // 解除内核页表中对这部分释放内容的映射
+    // 如果释放的内容不够1页则不用解除映射
+    if(PGROUNDUP(sz) < PGROUNDUP(p->sz))
+      uvmunmap(p->kpagetable, PGROUNDUP(sz), (PGROUNDUP(p->sz) - PGROUNDUP(sz)) / PGSIZE, 0);
   }
   p->sz = sz;
   return 0;
@@ -322,6 +334,13 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+  
+  // lab3-2 创建子进程时,需要将子进程的用户页表映射添加到子进程的内核页表中
+  if(u2kvmcopy(np->pagetable, np->kpagetable, 0, np->sz) < 0){
+    freeproc(np);
+    release(&np->lock);
+    return -1;    
+  }
 
   np->parent = p;
 
