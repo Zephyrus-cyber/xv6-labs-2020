@@ -25,6 +25,20 @@ static struct {
 
 static char digits[] = "0123456789abcdef";
 
+// lab4-2
+void 
+backtrace(void)
+{
+  printf("backtrace:\n");
+  uint64 fp = r_fp();  // fp: top of current frame
+  uint64 top = PGROUNDUP(fp);   // 栈的顶部
+  uint64 bottom = PGROUNDDOWN(fp);   // 栈的底部地址
+  for(; fp >= bottom && fp < top; fp = *((uint64 *) (fp-16)))
+  {
+    printf("%p\n", *((uint64 *) (fp-8)));  // 打印ra
+  }
+}
+
 static void
 printint(int xx, int base, int sign)
 {
@@ -121,6 +135,7 @@ panic(char *s)
   printf("panic: ");
   printf(s);
   printf("\n");
+  backtrace();  // lab4-2
   panicked = 1; // freeze uart output from other CPUs
   for(;;)
     ;
