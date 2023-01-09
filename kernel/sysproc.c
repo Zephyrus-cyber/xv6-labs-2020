@@ -7,6 +7,30 @@
 #include "spinlock.h"
 #include "proc.h"
 
+// lab4-3
+uint64
+sys_sigalarm(void)
+{
+  int interval;
+  uint64 handler;
+
+  if(argint(0, &interval) < 0 || argaddr(1, &handler) < 0 || interval < 0)  // interval=0是停止报警调用
+  {
+    return -1;
+  }
+  myproc()->interval = interval;
+  myproc()->handler = handler;
+  myproc()->passedTicks = 0;
+  return 0;
+}
+
+// lab4-3
+uint64
+sys_sigreturn(void)
+{
+  return 0;
+}
+
 uint64
 sys_exit(void)
 {

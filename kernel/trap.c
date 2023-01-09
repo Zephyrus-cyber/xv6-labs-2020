@@ -75,6 +75,17 @@ usertrap(void)
 
   if(p->killed)
     exit(-1);
+  
+  // lab4-3
+  if(which_dev == 2)
+  {
+    p->passedTicks++;
+    if(p->interval != 0 && p->passedTicks == p->interval)
+    {
+      p->passedTicks = 0;  // 清零
+      p->trapframe->epc = p->handler;  // 当返回用户空间时,会将epc的值赋给pc,从而执行handler
+    }
+  }
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
