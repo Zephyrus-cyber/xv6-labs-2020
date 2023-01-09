@@ -81,8 +81,11 @@ usertrap(void)
   {
     p->passedTicks++;
     if(p->interval != 0 && p->passedTicks == p->interval)
-    {
-      p->passedTicks = 0;  // 清零
+    { 
+      // 之后epc会被覆盖，在此处保存p->trapframe的副本到p->trapframecopy，在sigreturn的时候还原
+      memmove(p->trapframecopy, p->trapframe, sizeof(struct trapframe)); // 注意这里不能用p->trapframe，因为trapframe是指针类型，只占用8字节
+
+      // p->passedTicks = 0;  // 清零 放到sigreturn中，防止重复调用handler
       p->trapframe->epc = p->handler;  // 当返回用户空间时,会将epc的值赋给pc,从而执行handler
     }
   }

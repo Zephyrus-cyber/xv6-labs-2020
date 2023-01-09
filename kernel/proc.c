@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "stddef.h"
 
 struct cpu cpus[NCPU];
 
@@ -131,6 +132,7 @@ found:
   p->interval = 0;
   p->handler = 0;
   p->passedTicks = 0;
+  memset(p->trapframecopy, 0, sizeof(struct trapframe));  // 初始化
   return p;
 }
 

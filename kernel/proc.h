@@ -106,4 +106,5 @@ struct proc {
   int  interval;   // lab4-3 报警间隔
   uint64  handler;     // lab4-3 处理函数的指针
   int  passedTicks;   // lab4-3 ticks have passed since the last call (or are left until the next call) to a process's alarm handler
+  char trapframecopy[288];  // lab4-3 用户程序trapframe的拷贝
 };

@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "stddef.h"
 
 // lab4-3
 uint64
@@ -28,6 +29,13 @@ sys_sigalarm(void)
 uint64
 sys_sigreturn(void)
 {
+  // 前提是存在trapframe的副本
+  struct proc *p = myproc(); 
+  if(p->trapframecopy == NULL)
+    return -1;
+  memmove(p->trapframe, p->trapframecopy, sizeof(struct trapframe));
+  p->passedTicks = 0;  // 调用sigreturn说明handler结束，此时再将passedTicks清零
+  memset(p->trapframecopy, 0, sizeof(struct trapframe));   // 已经恢复了，置0表示无效
   return 0;
 }
 
